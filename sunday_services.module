@@ -1,0 +1,163 @@
+<?php
+
+function sunday_services_block_info() {
+  // This hook returns an array, each component of which is an array of block
+  // information. The array keys are the 'delta' values used in other block
+  // hooks.
+  //
+  // The required block information is a block description, which is shown
+  // to the site administrator in the list of possible blocks. You can also
+  // provide initial settings for block weight, status, etc.
+  //
+  // Many options are defined in hook_block_info():
+  $blocks['sunday_services'] = array(
+    // info: The name of the block.
+    'info' => t('This Sunday Services List'),
+  );
+  return $blocks;
+}
+
+function sunday_services_block_view($delta = '') {
+  if (date('N') == 7) {
+    $sunday = strtotime('today');
+  } else {
+    $sunday = strtotime('Next Sunday');
+  }
+  $sundayfull = date('Y-m-d', $sunday);
+  $sundaydate = intval(date('d', $sunday));
+  $week = floor(($sundaydate - 1) / 7) + 1;
+  $weeks = array(
+    1 => array(
+      array(
+        'time' => '08:00',
+        'location' => "St Mary's, Standon",
+        'type' => 'BCP Communion'
+      ),
+      array(
+        'time' => '10:45',
+        'location' => "All Saints, Little Munden",
+        'type' => 'United Worship'
+      ),
+    ),
+    2 => array(
+      array(
+        'time' => '09:15',
+        'location' => "All Saints, Little Munden",
+        'type' => 'All-age Worship',
+      ),
+      array(
+        'time' => '10:45',
+        'location' => "St Mary's, Standon",
+        'type' => 'Family Communion',
+      ),
+    ),
+    3 => array(
+      array(
+        'time' => '08:00',
+        'location' => "All Saints, Little Munden",
+        'type' => 'BCP Communion',
+      ),
+      array(
+        'time' => '10:45',
+        'location' => "St Mary's, Standon",
+        'type' => 'United Worship',
+      ),
+    ),
+    4 => array(
+      array(
+        'time' => '09:15',
+        'location' => "All Saints, Little Munden",
+        'type' => 'Family Communion',
+      ),
+      array(
+        'time' => '10:45',
+        'location' => "St Mary's, Standon",
+        'type' => 'All-age Worship',
+      ),
+    ),
+    5 => array(
+      array(
+        'time' => '08:00',
+        'location' => "St Mary's, Standon",
+        'type' => 'BCP Communion',
+      ),
+      array(
+        'time' => '10:45',
+        'location' => "St Catherine's, Sacombe",
+        'type' => 'Family Communion',
+      ),
+    ),
+  );
+  $specials = array(
+    '2015-11-01' => array(
+      array(
+        'time' => '08:00',
+        'location' => "St Mary's, Standon",
+        'type' => 'BCP Communion'
+      ),
+      array(
+        'time' => '10:45',
+        'location' => "All Saints, Little Munden",
+        'type' => 'United Worship'
+      ),
+      array(
+        'time' => '15:00',
+        'location' => "St Mary's Standon",
+        'type' => 'Service of Memories',
+      ),
+    ),
+    '2015-11-08' => array(
+      array(
+        'time' => '09:15',
+        'location' => "All Saints Little Munden",
+        'type' => 'Act of Remembrance',
+      ),
+      array(
+        'time' => '10:45',
+        'location' => "St Mary's Standon",
+        'type' => 'Act of Remembrance',
+      ),
+      array(
+        'time' => '15:00',
+        'location' => "St Catherine's Sacombe",
+        'type' => 'Act of Remembrance',
+      ),
+    ),
+  );
+  if (isset($specials[$sundayfull])) {
+    $svcs = $specials[$sundayfull];
+  } else {
+    $svcs = $weeks[$week];
+  }
+  foreach ($svcs as $service) {
+    $services[] = theme('sunday_services_block_service', array('service' => $service));
+  }
+  
+  if (date('N') == 7) {
+    $title = "Today's Services";
+  } else {
+    $title = "This Sunday's Services";
+  }
+  
+  return array(
+    'subject' => $title,
+    'content' => array(
+      '#theme' => 'item_list',
+      '#items' => $services,
+      '#type' => 'ul',
+    ),
+  );
+}
+
+function sunday_services_theme($existing, $type, $theme, $path) {
+  return array(
+    'sunday_services_block_service' => array(
+      'variables' => array(
+        'service' => NULL
+      ),
+      'template' => 'sunday-services-block-service',
+    ),
+  );
+}
+
+?>
