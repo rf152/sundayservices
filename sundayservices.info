@@ -1,7 +1,6 @@
 name = Sunday Services
 description = A module to display the services this sunday.
 core = 7.x
-version = 7.x_1.0
+version = 7.x-1.2
 dependencies[] = block
-
-
+configure = admin/config/system/sundayservices

@@ -1,135 +1,486 @@
 <?php
+/**
+ * Implements hook_permission().
+ */
+function sundayservices_permission() {
+  return array(
+    'view sundayservices' => array(
+      'title' => t('View Services'),
+      'description' => t('View both default and special services.'),
+    ),
+    'edit sundayservices special' => array(
+      'title' => t('Add / Edit Special Services'),
+      'description' => t('Add or edit special services for the Sunday Services module.'),
+    ),
+    'delete sundayservices special' => array(
+      'title' => t('Delete Special Services'),
+      'description' => t('Delete special services.'),
+    ),
+    'edit sundayservices default' => array(
+      'title' => t('Add / Edit Default Services'),
+      'description' => t('Add or edit default services for the Sunday Services module.'),
+    ),
+    'delete sundayservices default' => array(
+      'title' => t('Delete Default Services'),
+      'description' => t('Delete default services.'),
+    ),
+  );
+}
+/**
+ * Implements hook_menu().
+ */
+function sundayservices_menu() {
+  $items['admin/content/sundayservices'] = array(
+    'title' => 'Services',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'sundayservices_admin_special_services',
+    'access arguments' => array('view sundayservices'),
+  );
+  $items['admin/content/sundayservices/special'] = array(
+    'title' => 'Special Services',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'page callback' => 'sundayservices_admin_special_services',
+    'access arguments' => array('view sundayservices'),
+  );
+  $items['admin/content/sundayservices/special/add'] = array(
+    'title' => 'Add Service',
+    'type' => MENU_LOCAL_ACTION,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('sundayservices_admin_form_special'),
+    'access arguments' => array('edit sundayservices special'),
+  );
+  $items['admin/content/sundayservices/special/%/edit'] = array(
+    'title' => 'Edit Service',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('sundayservices_admin_form_special', 4),
+    'access arguments' => array('edit sundayservices special'),
+  );
+  $items['admin/content/sundayservices/special/%/delete'] = array(
+    'title' => 'Edit Service',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'sundayservices_admin_delete_special',
+    'page arguments' => array(4),
+    'access arguments' => array('delete sundayservices special'),
+  );
+  $items['admin/content/sundayservices/special/copy'] = array(
+    'title' => 'Copy Services',
+    'type' => MENU_LOCAL_ACTION,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('sundayservices_admin_form_copy'),
+    'access arguments' => array('edit sundayservices special'),
+  );
+  $items['admin/content/sundayservices/default'] = array(
+    'title' => 'Default Services',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'sundayservices_admin_default_services',
+    'access arguments' => array('view sundayservices'),
+  );
+  $items['admin/content/sundayservices/default/add'] = array(
+    'title' => 'Add Service',
+    'type' => MENU_LOCAL_ACTION,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('sundayservices_admin_form_default'),
+    'access arguments' => array('edit sundayservices default'),
+  );
+  $items['admin/content/sundayservices/default/%/edit'] = array(
+    'title' => 'Edit Service',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('sundayservices_admin_form_default', 4),
+    'access arguments' => array('edit sundayservices default'),
+  );
+  $items['admin/content/sundayservices/default/%/delete'] = array(
+    'title' => 'Edit Service',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'sundayservices_admin_delete_default',
+    'page arguments' => array(4),
+    'access arguments' => array('delete sundayservices default'),
+  );
+  return $items;
+}
+/**
+ * Display special services
+ */ 
+function sundayservices_admin_special_services() {
+  $query = db_select('sundayservices', 'ss');
+  $query
+    ->fields('ss', array('sid', 'date', 'time', 'location', 'type'))
+    ->condition('ss.date', 'week-%', 'NOT LIKE')
+    ->orderBy('ss.date', 'DESC');
+  $results = $query->execute();
+  
+  $editlinks = user_access('edit sundayservices special');
+  
+  $header = array('Date', 'Time', 'Location', 'Type');
+  
+  if ($editlinks) $header[] = '';
+  
+  $rows = array();
 
-function sunday_services_block_info() {
-  // This hook returns an array, each component of which is an array of block
-  // information. The array keys are the 'delta' values used in other block
-  // hooks.
-  //
-  // The required block information is a block description, which is shown
-  // to the site administrator in the list of possible blocks. You can also
-  // provide initial settings for block weight, status, etc.
-  //
-  // Many options are defined in hook_block_info():
+  
+  foreach ($results as $result) {
+    $row =  array(
+      $result->date,
+      $result->time,
+      $result->location,
+      $result->type
+    );
+
+    if ($editlinks) {
+      $row[] = l('Edit', 'admin/content/sundayservices/special/' . $result->sid . '/edit') . ' | ' .
+      l('Delete', 'admin/content/sundayservices/special/' . $result->sid . '/delete');
+    }
+    $rows[] = $row;
+  }
+  $output = array(
+    'results' => array(
+      '#theme' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+      '#empty' => '<strong><center>No Special Services found</center></strong>',
+    ),
+  );
+  return $output;
+}
+/**
+ * Administration Form for default services
+ */
+function sundayservices_admin_form_special($form, &$form_state, $sid = NULL) {
+  if ($sid != NULL) {
+    $query = db_select('sundayservices', 'ss');
+    $query
+      ->fields('ss', array('date', 'time', 'location', 'type'))
+      ->condition('ss.sid', $sid, '=');
+    $results = $query->execute();
+    $service = $results->fetchObject();
+    $service->week = substr($service->date, strlen($service->date) - 1, 1);
+  } else {
+    $service = new stdClass();
+    $service->time = '';
+    $service->date = '';
+    $service->location = '';
+    $service->type = '';
+  }
+  $form['sid'] = array(
+    '#type' => 'hidden',
+    '#value' => $sid,
+  );
+  $form['date'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Date (YYYY-MM-DD)'),
+    '#required' => TRUE,
+    '#maxlength' => 10,
+    '#default_value' => $service->date,
+  );
+  $form['time'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Time (HH:MM)'),
+    '#requred' => TRUE,
+    '#maxlength' => 5,
+    '#default_value' => $service->time,
+  );
+  $form['location'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Location'),
+    '#required' => TRUE,
+    '#default_value' => $service->location,
+  );
+  $form['type'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Type of service'),
+    '#required' => TRUE,
+    '#default_value' => $service->type,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save',
+  );
+  
+  return $form;
+}
+/**
+ * Validation for the sundayservices_admin_form_special form
+ */
+function sundayservices_admin_form_special_validate($form, &$form_state) {
+  $ret = TRUE;
+  $parts = explode('-', $form_state['values']['date']);
+  if (!checkdate($parts[1], $parts[2], $parts[0])) {
+    form_set_error('date', t('Please enter a valid date in YYYY-MM-DD'));
+  }
+  if (!preg_match('/(?:[0-1][0-9]|2[0-3]):[0-5][0-9]/', $form_state['values']['time'])) {
+    form_set_error('time', t('Please enter a valid time in HH:MM format'));
+    $ret = FALSE;
+  }
+  return $ret;
+}
+/**
+ * Submit handler for the sundayservices_admin_form_special form.
+ */
+function sundayservices_admin_form_special_submit($form, &$form_state) {
+  if ($form_state['values']['sid'] == NULL) {
+    $act = db_insert('sundayservices')
+      ->fields(array(
+        'date' => $form_state['values']['date'],
+        'time' => $form_state['values']['time'],
+        'location' => $form_state['values']['location'],
+        'type' => $form_state['values']['type'],
+      ))
+      ->execute();
+  } else {
+    $sid = db_update('sundayservices')
+      ->fields(array(
+        'sid' => $form_state['values']['sid'],
+        'date' => $form_state['values']['date'],
+        'time' => $form_state['values']['time'],
+        'location' => $form_state['values']['location'],
+        'type' => $form_state['values']['type'],
+      ))
+      ->condition('sid', $form_state['values']['sid'])
+      ->execute();
+  }
+  $form_state['redirect'] = array('admin/content/sundayservices/special');
+  drupal_set_message(t('The form has been submitted'));
+}
+/**
+ * Delete special service
+ */
+function sundayservices_admin_delete_special($sid) {
+  db_delete('sundayservices')
+    ->condition('sid', $sid)
+    ->execute();
+  drupal_goto('admin/content/sundayservices/special');
+}
+/**
+ * Copy default services to special date
+ */
+function sundayservices_admin_form_copy($form, &$form_state) {
+  $form['date'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Date to copy to (YYYY-MM-DD)'),
+    '#required' => TRUE,
+    '#maxlength' => 10,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save',
+  );
+  return $form;
+}
+/**
+ * Validate copy form
+ */
+function sundayservices_admin_form_copy_validate($form, &$form_state) {
+  $date = $form_state['values']['date'];
+  if (date('N', strtotime($date)) != 7) {
+    form_set_error('date', t('Please choose a date that is a Sunday'));
+    return FALSE;
+  }
+  return TRUE;
+}
+
+function sundayservices_admin_form_copy_submit($form, &$form_state) {
+  $date = $form_state['values']['date'];
+  $sunday = strtotime($date);
+  $sundayfull = date('Y-m-d', $sunday);
+  $sundaydate = intval(date('d', $sunday));
+  $week = floor(($sundaydate - 1) / 7) + 1;
+  $query = db_select('sundayservices', 'ss');
+  $query
+    ->fields('ss', array('time', 'location', 'type'))
+    ->condition('ss.date', 'week-' . $week, '=');
+  $results = $query->execute();
+  foreach ($results as $result) {
+    db_insert('sundayservices')
+      ->fields(array(
+        'date' => $date,
+        'time' => $result->time,
+        'location' => $result->location,
+        'type' => $result->type,
+      ))
+      ->execute();
+  }
+  drupal_goto('admin/content/sundayservices/special');
+}
+/**
+ * Display default services
+ */ 
+function sundayservices_admin_default_services() {
+  $query = db_select('sundayservices', 'ss');
+  $query
+    ->fields('ss', array('sid', 'date', 'time', 'location', 'type'))
+    ->condition('ss.date', 'week-%', 'LIKE')
+    ->orderBy('ss.date', 'ASC');
+  $results = $query->execute();
+  
+  $editlinks = user_access('edit sundayservices default');
+
+  $header = array('Date', 'Time', 'Location', 'Type');
+  
+  if ($editlinks) $header[] = '';
+  $rows = array();
+
+  foreach ($results as $result) {
+    $week = substr($result->date, strlen($result->date) - 1, 1);
+    $row = array(
+      'Week ' . $week,
+      $result->time,
+      $result->location,
+      $result->type
+    );
+    if ($editlinks) {
+      $row[] = l('Edit', 'admin/content/sundayservices/special/' . $result->sid . '/edit') . ' | ' .
+      l('Delete', 'admin/content/sundayservices/special/' . $result->sid . '/delete');
+    }
+    $rows[] = $row;
+  }
+  $output = array(
+    'results' => array(
+      '#theme' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+      '#empty' => '<strong><center>No Default Services found</center></strong>',
+    ),
+  );
+    
+  return $output;
+}
+/**
+ * Administration Form for default services
+ */
+function sundayservices_admin_form_default($form, &$form_state, $sid = NULL) {
+  if ($sid != NULL) {
+    $query = db_select('sundayservices', 'ss');
+    $query
+      ->fields('ss', array('date', 'time', 'location', 'type'))
+      ->condition('ss.sid', $sid, '=');
+    $results = $query->execute();
+    $service = $results->fetchObject();
+    $service->week = substr($service->date, strlen($service->date) - 1, 1);
+  } else {
+    $service = new stdClass();
+    $service->time = '';
+    $service->week = '';
+    $service->location = '';
+    $service->type = '';
+  }
+  $form['sid'] = array(
+    '#type' => 'hidden',
+    '#value' => $sid,
+  );
+  $form['week'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Week (1-5)'),
+    '#required' => TRUE,
+    '#maxlength' => 1,
+    '#default_value' => $service->week,
+  );
+  $form['time'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Time (HH:MM)'),
+    '#requred' => TRUE,
+    '#maxlength' => 5,
+    '#default_value' => $service->time,
+  );
+  $form['location'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Location'),
+    '#required' => TRUE,
+    '#default_value' => $service->location,
+  );
+  $form['type'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Type of service'),
+    '#required' => TRUE,
+    '#default_value' => $service->type,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save',
+  );
+  
+  return $form;
+}
+/**
+ * Validation for the sundayservices_admin_form_default form
+ */
+function sundayservices_admin_form_default_validate($form, &$form_state) {
+  $ret = TRUE;
+  if (!is_numeric($form_state['values']['week'])) {
+    form_set_error('week', t('Please enter a week between 1 and 5a'));
+    $ret = FALSE;
+  } else {
+    if ($form_state['values']['week'] < 1 || $form_state['values']['week'] > 5) {
+      form_set_error('week', t('Please enter a week between 1 and 5'));
+      $ret = FALSE;
+    } else {
+      $form_state['values']['date'] = 'week-' . $form_state['values']['week'];
+    }
+  }
+  if (!preg_match('/(?:[0-1][0-9]|2[0-3]):[0-5][0-9]/', $form_state['values']['time'])) {
+    form_set_error('time', t('Please enter a valid time in HH:MM format'));
+    $ret = FALSE;
+  }
+  return $ret;
+}
+/**
+ * Submit handler for the sundayservices_admin_form_default form.
+ */
+function sundayservices_admin_form_default_submit($form, &$form_state) {
+  if ($form_state['values']['sid'] === NULL) {
+    $act = db_insert('sundayservices')
+      ->fields(array(
+        'date' => $form_state['values']['date'],
+        'time' => $form_state['values']['time'],
+        'location' => $form_state['values']['location'],
+        'type' => $form_state['values']['type'],
+      ))
+      ->execute();
+  } else {
+    $sid = db_update('sundayservices')
+      ->fields(array(
+        'sid' => $form_state['values']['sid'],
+        'date' => $form_state['values']['date'],
+        'time' => $form_state['values']['time'],
+        'location' => $form_state['values']['location'],
+        'type' => $form_state['values']['type'],
+      ))
+      ->condition('sid', $form_state['values']['sid'])
+      ->execute();
+  }
+  $form_state['redirect'] = array('admin/content/sundayservices/default');
+  drupal_set_message(t('Service Saved'));
+}
+/**
+ * Delete default service
+ */
+function sundayservices_admin_delete_default($sid) {
+  db_delete('sundayservices')
+    ->condition('sid', $sid)
+    ->execute();
+  drupal_goto('admin/content/sundayservices/default');
+}
+/**
+ * Implements hook_block_info().
+ */
+function sundayservices_block_info() {
   $blocks['sunday_services'] = array(
-    // info: The name of the block.
     'info' => t('This Sunday Services List'),
   );
   return $blocks;
 }
-
-function sunday_services_block_view($delta = '') {
+/**
+ * Implements hook_block_view().
+ */
+function sundayservices_block_view($delta = '') {
   if (date('N') == 7) {
     $sunday = strtotime('today');
   } else {
-    $sunday = strtotime('Next Sunday');
+    $sunday = strtotime('next Sunday');
   }
   $sundayfull = date('Y-m-d', $sunday);
-  $sundaydate = intval(date('d', $sunday));
-  $week = floor(($sundaydate - 1) / 7) + 1;
-  $weeks = array(
-    1 => array(
-      array(
-        'time' => '08:00',
-        'location' => "St Mary's, Standon",
-        'type' => 'BCP Communion'
-      ),
-      array(
-        'time' => '10:45',
-        'location' => "All Saints, Little Munden",
-        'type' => 'United Worship'
-      ),
-    ),
-    2 => array(
-      array(
-        'time' => '09:15',
-        'location' => "All Saints, Little Munden",
-        'type' => 'All-age Worship',
-      ),
-      array(
-        'time' => '10:45',
-        'location' => "St Mary's, Standon",
-        'type' => 'Family Communion',
-      ),
-    ),
-    3 => array(
-      array(
-        'time' => '08:00',
-        'location' => "All Saints, Little Munden",
-        'type' => 'BCP Communion',
-      ),
-      array(
-        'time' => '10:45',
-        'location' => "St Mary's, Standon",
-        'type' => 'United Worship',
-      ),
-    ),
-    4 => array(
-      array(
-        'time' => '09:15',
-        'location' => "All Saints, Little Munden",
-        'type' => 'Family Communion',
-      ),
-      array(
-        'time' => '10:45',
-        'location' => "St Mary's, Standon",
-        'type' => 'All-age Worship',
-      ),
-    ),
-    5 => array(
-      array(
-        'time' => '08:00',
-        'location' => "St Mary's, Standon",
-        'type' => 'BCP Communion',
-      ),
-      array(
-        'time' => '10:45',
-        'location' => "St Catherine's, Sacombe",
-        'type' => 'Family Communion',
-      ),
-    ),
-  );
-  $specials = array(
-    '2015-11-01' => array(
-      array(
-        'time' => '08:00',
-        'location' => "St Mary's, Standon",
-        'type' => 'BCP Communion'
-      ),
-      array(
-        'time' => '10:45',
-        'location' => "All Saints, Little Munden",
-        'type' => 'United Worship'
-      ),
-      array(
-        'time' => '15:00',
-        'location' => "St Mary's Standon",
-        'type' => 'Service of Memories',
-      ),
-    ),
-    '2015-11-08' => array(
-      array(
-        'time' => '09:15',
-        'location' => "All Saints Little Munden",
-        'type' => 'Act of Remembrance',
-      ),
-      array(
-        'time' => '10:45',
-        'location' => "St Mary's Standon",
-        'type' => 'Act of Remembrance',
-      ),
-      array(
-        'time' => '15:00',
-        'location' => "St Catherine's Sacombe",
-        'type' => 'Act of Remembrance',
-      ),
-    ),
-  );
-  if (isset($specials[$sundayfull])) {
-    $svcs = $specials[$sundayfull];
-  } else {
-    $svcs = $weeks[$week];
-  }
-  foreach ($svcs as $service) {
+  $rows = sundayservices_get_services($sundayfull);
+  foreach ($rows as $service) {
     $services[] = theme('sunday_services_block_service', array('service' => $service));
   }
   
@@ -149,7 +500,45 @@ function sunday_services_block_view($delta = '') {
   );
 }
 
-function sunday_services_theme($existing, $type, $theme, $path) {
+function sundayservices_get_services($sundayfull) {
+  $rows = array();
+  $sunday = strtotime($sundayfull);
+  $sundaydate = intval(date('d', $sunday));
+  $week = floor(($sundaydate - 1) / 7) + 1;
+  $query = db_select('sundayservices', 'ss');
+  $query
+    ->fields('ss', array('date', 'time', 'location', 'type'))
+    ->condition('ss.date', $sundayfull, '=');
+  $results = $query->execute();
+  if ($results->rowCount()) {
+    // There are special services
+    foreach ($results as $result) {
+      $rows[] = array(
+        'time' => $result->time,
+        'location' => $result->location,
+        'type' => $result->type,
+      );
+    }
+  } elseif (date('N', $sunday) == 7) {
+    $query = db_select('sundayservices', 'ss');
+    $query
+      ->fields('ss', array('date', 'time', 'location', 'type'))
+      ->condition('ss.date', 'week-' . $week, '=');
+    $results = $query->execute();
+    foreach ($results as $result) {
+      $rows[] = array(
+        'time' => $result->time,
+        'location' => $result->location,
+        'type' => $result->type,
+      );
+    }
+  }
+  return $rows;
+}
+/**
+ * Implements hook_theme().
+ */
+function sundayservices_theme($existing, $type, $theme, $path) {
   return array(
     'sunday_services_block_service' => array(
       'variables' => array(
@@ -158,6 +547,68 @@ function sunday_services_theme($existing, $type, $theme, $path) {
       'template' => 'sunday-services-block-service',
     ),
   );
+}
+/**
+ * Implements hook_cron().
+ */
+function sundayservices_cron() {
+  db_delete('sundayservices')
+    ->condition('date', date('Y-m-d', strtotime("-7 Months")), '<')
+    ->execute();
+  
+  // Regenerate ical
+  
+  $next = variable_get('sundayservices_nextical', '1');  
+  $now = time();
+  
+  if ($now > $next) {
+    $enddate = strtotime('+6 months');
+    $startdate = strtotime('-6 months');
+    $counter = $startdate;
+    while ($counter < $enddate) {
+      $fullday = date('Y-m-d', $counter);
+      $_dayservices = sundayservices_get_services($fullday);
+      if (count($_dayservices)) {
+        $_services[$fullday] = $_dayservices;
+      }
+      $counter += 24 * 60 * 60;
+    }
+    
+    $data = "BEGIN:VCALENDAR\r\n";
+    $data .= "METHOD:PUBLISH\r\n";
+    $data .= "VERSION:2.0\r\n";
+    $data .= "PRODID:-//UBSMS//Services//EN\r\n\r\n";
+    
+    foreach ($_services as $date=>$day) {
+      $datestamp = str_replace("-", '', $date);
+      $offset = date_offset_get(date_create($date . ' ' . $day[0]['time'], timezone_open('Europe/London'))) / -36;
+      foreach($day as $service) {
+        $timestamp = str_pad(strval(intval(str_replace(':', '', $service['time'])) + $offset), 4, '0', STR_PAD_LEFT);;
+        if (intval($timestamp) > 2300) {
+          $enddate = $datestamp + 1;
+        } else {
+          $enddate = $datestamp;
+        }
+        $endstamp = str_pad((intval($timestamp) + 100) % 2400, 4, '0', STR_PAD_LEFT);
+        //$data .= "OFFSET: " . $offset . "\r\n";
+        $data .= "BEGIN:VEVENT\r\n";
+        $data .= "SUMMARY:" . $service['type'] . "\r\n";
+        $data .= "UID:" . $datestamp . $timestamp . "\r\n";
+        $data .= "STATUS:CONFIRMED\r\n";
+        $data .= "DTSTART:" . $datestamp . 'T' . $timestamp . "00Z\r\n";
+        $data .= "DTEND:" . $enddate . 'T' . $endstamp . "00Z\r\n";
+        $data .= "LOCATION:" . $service['location'] . "\r\n";
+        $data .= "END:VEVENT\r\n";
+      }
+    }
+
+    $data .= "END:VCALENDAR";
+    $filename = file_unmanaged_save_data($data, 'services.ical', FILE_EXISTS_REPLACE);
+    $fname = file_unmanaged_save_data(print_r($_services, true), 'temp.txt', FILE_EXISTS_REPLACE);
+    $nextrun = $now + 24 * 60 * 60;
+    variable_set('sundayservices_nextical', $nextrun);
+  }
+  
 }
 
 ?>
