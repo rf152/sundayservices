@@ -107,7 +107,8 @@ function sundayservices_admin_special_services() {
   $query
     ->fields('ss', array('sid', 'date', 'time', 'location', 'type'))
     ->condition('ss.date', 'week-%', 'NOT LIKE')
-    ->orderBy('ss.date', 'DESC');
+    ->orderBy('ss.date', 'DESC')
+    ->orderBy('ss.time', 'DESC');
   $results = $query->execute();
   
   $editlinks = user_access('edit sundayservices special');
@@ -310,7 +311,8 @@ function sundayservices_admin_default_services() {
   $query
     ->fields('ss', array('sid', 'date', 'time', 'location', 'type'))
     ->condition('ss.date', 'week-%', 'LIKE')
-    ->orderBy('ss.date', 'ASC');
+    ->orderBy('ss.date', 'ASC')
+    ->orderBy('ss.time', 'ASC');
   $results = $query->execute();
   
   $editlinks = user_access('edit sundayservices default');
